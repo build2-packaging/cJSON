@@ -1,0 +1,3 @@
+import libs = libcjson%lib{cjson}
+
+exe{driver}: {h c}{**} $libs testscript{**}
