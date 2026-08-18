@@ -1,3 +1,4 @@
-import libs = libcjson%lib{cjson}
+import cjson = libcjson%lib{cjson}
+import utils = libcjson%lib{cjson-utils}
 
-exe{driver}: {h c}{**} $libs testscript{**}
+exe{driver}: {h c}{**} $cjson $utils testscript{**}
