@@ -1,6 +1,6 @@
 $out_root/
 {
-  include src/cjson/
+  include src/
 }
 
-export $out_root/src/cjson/$import.target
+export $out_root/src/$import.target

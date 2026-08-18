@@ -1,0 +1,97 @@
+intf_libs = # Interface dependencies.
+impl_libs = # Implementation dependencies.
+#import xxxx_libs += libhello%lib{hello}
+
+# Public headers.
+#
+pub = [dir_path] ../include/
+
+include $pub
+
+pub_hdrs = $($pub/ pub_hdrs)
+
+# Core and Utils are separate libraries. Do not compile both .c files into
+# lib{cjson}.
+#
+./: lib{cjson}: $pub/cjson/h{cJSON}
+lib{cjson}: cjson/c{cJSON} $impl_libs $intf_libs
+
+./: lib{cjson-utils}: $pub/cjson/h{cJSON_Utils}
+lib{cjson-utils}: cjson/c{cJSON_Utils} lib{cjson}
+
+# Build options.
+#
+out_pfx_inc     = [dir_path] $out_root/include/
+src_pfx_inc     = [dir_path] $src_root/include/
+out_pfx_src     = [dir_path] $out_root/src/
+src_pfx_src     = [dir_path] $src_root/src/
+out_pfx_inc_unq = [dir_path] $out_root/include/cjson/
+src_pfx_inc_unq = [dir_path] $src_root/include/cjson/
+
+c.poptions =+ "-I$out_pfx_src" "-I$src_pfx_src" \
+              "-I$out_pfx_inc" "-I$src_pfx_inc" \
+              "-I$out_pfx_inc_unq" "-I$src_pfx_inc_unq"
+
+# Upstream ENABLE_LOCALES defaults to ON (localeconv for decimal point).
+#
+c.poptions += -DENABLE_LOCALES
+
+# Upstream ENABLE_PUBLIC_SYMBOLS (own CJSON_* macros, no-symexport).
+#
+if ($c.target.class == 'windows')
+{
+  if ($c.target.system == 'win32-msvc')
+    c.poptions += -D_CRT_SECURE_NO_WARNINGS
+
+  objs{*}: c.poptions += -DCJSON_EXPORT_SYMBOLS
+  obja{*}: c.poptions += -DCJSON_HIDE_SYMBOLS
+}
+else
+{
+  c.poptions += -DCJSON_EXPORT_SYMBOLS -DCJSON_API_VISIBILITY
+  objs{*}: c.coptions += -fvisibility=hidden
+  c.libs += -lm
+}
+
+# Export options.
+#
+# Dual inclusion: also support #include <cJSON.h>.
+#
+lib{cjson cjson-utils}:
+{
+  c.export.poptions = "-I$out_pfx_inc" "-I$src_pfx_inc" \
+                      "-I$out_pfx_inc_unq" "-I$src_pfx_inc_unq"
+}
+
+lib{cjson}:
+{
+  c.export.libs = $intf_libs
+}
+
+# cJSON_Utils.h includes "cJSON.h" and uses cJSON* in its API.
+#
+lib{cjson-utils}:
+{
+  c.export.libs = lib{cjson}
+}
+
+lib{cjson cjson-utils}: c.pkgconfig.include = include/ include/cjson/
+
+if ($c.target.class == 'windows')
+{
+  libs{cjson cjson-utils}: c.export.poptions += -DCJSON_IMPORT_SYMBOLS
+  liba{cjson cjson-utils}: c.export.poptions += -DCJSON_HIDE_SYMBOLS
+}
+
+# For pre-releases use the complete version to make sure they cannot
+# be used in place of another pre-release or the final version. See
+# the version module for details on the version.* variable values.
+#
+if $version.pre_release
+  lib{cjson cjson-utils}: bin.lib.version = "-$version.project_id"
+else
+  lib{cjson cjson-utils}: bin.lib.version = "-$version.major.$version.minor"
+
+# Don't install private headers.
+#
+h{*}: install = false
