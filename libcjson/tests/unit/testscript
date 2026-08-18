@@ -1,0 +1,12 @@
+# Link src data into the test working directory so relative
+# "inputs/..." and "json-patch-tests/..." paths resolve. Trailing
+# slash on the source keeps the directory attribute on Windows.
+# $src_base/inputs is a real directory of file-level symlinks.
+#
+# Unity prints to stdout. Merge it to stderr and do not match it.
+#
+{
+  ln -s $src_base/inputs/ inputs
+  ln -s $src_base/json-patch-tests/ json-patch-tests
+  $* 1>! == 0
+}

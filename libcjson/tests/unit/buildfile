@@ -1,0 +1,69 @@
+import cjson = libcjson%lib{cjson}
+import utils = libcjson%lib{cjson-utils}
+
+# Public-API Unity suite. tests/cJSON.c and tests/cJSON_Utils.h are
+# include shims, so these exes link the imported library.
+#
+libue{common}: h{common} $cjson
+libue{common}: ../c{cJSON}: include = adhoc
+libue{common}: ../h{cJSON_Utils}
+
+libue{unity}: unity/src/{h c}{unity} \
+              unity/src/h{unity_internals} \
+              unity/examples/h{unity_config}
+
+# White-box parse_*/print_* and misc_tests call statics from cJSON.c.
+# Test the public API through the imported library.
+#
+for t: c{* -unity_setup -readme_examples \
+         -parse_array -parse_hex4 -parse_number -parse_object \
+         -parse_string -parse_value \
+         -print_array -print_number -print_object -print_string \
+         -print_value -misc_tests}
+{
+  n = $name($t)
+  ./: exe{test-$n}: $t libue{common} libue{unity} testscript
+
+  # MSVC has no weak setUp/tearDown (upstream CMake does the same).
+  #
+  exe{test-$n}: c{unity_setup}: include = ($c.target.system == 'win32-msvc')
+}
+
+# MinGW GCC rejects \ + CRLF in string literals. This file uses \
+# line continuations. Upstream does not run it on MinGW.
+#
+./: exe{test-readme_examples}: include = ($c.target.system != 'mingw32')
+exe{test-readme_examples}: c{readme_examples} libue{common} libue{unity} \
+                           testscript
+exe{test-readme_examples}: c{unity_setup}: include = ($c.target.system == 'win32-msvc')
+
+for n: json_patch_tests misc_utils_tests old_utils_tests
+  exe{test-$n}: $utils
+
+# Runtime data is opened as "inputs/..." and "json-patch-tests/...".
+# The testscript links these into $~. Keep them on the exe so dist and
+# update-for-test see the files.
+#
+exe{test-parse_examples}: file{inputs/**}: include = adhoc
+
+exe{test-json_patch_tests}: file{json-patch-tests/**}: include = adhoc
+
+c.poptions =+ "-I$src_base"
+
+# tests/cJSON.c defines static compare_double. Most TUs do not call it.
+#
+if ($c.class == 'msvc')
+  c.coptions += /wd4505
+else
+  c.coptions += -Wno-unused-function
+
+if ($c.target.class == 'windows')
+{
+  if ($c.target.system == 'win32-msvc')
+    c.poptions += -D_CRT_SECURE_NO_WARNINGS
+
+  stack_size = 33554432
+  exe{test-*}: c.loptions += ($c.target.system == 'win32-msvc' \
+                              ? "/STACK:$stack_size"          \
+                              : "-Wl,--stack,$stack_size")
+}
