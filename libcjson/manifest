@@ -1,6 +1,6 @@
 : 1
 name: libcjson
-version: 1.7.19-a.0.z
+version: 1.7.19
 language: c
 project: cjson
 summary: ANSI C JSON parser library
