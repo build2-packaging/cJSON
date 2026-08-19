@@ -1,0 +1,7 @@
+: 1
+name: libcjson
+version: 1.7.19
+language: c
+project: cjson
+summary: ANSI C JSON parser library
+license: MIT; MIT License.
